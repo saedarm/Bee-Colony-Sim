@@ -71,7 +71,7 @@ func main() {
 
 				rl.DrawText(fmt.Sprintf("[%d] %s", i+1, name), 220, y+10, 22, textColor)
 
-				desc := presetDescription(name, cfg)
+				desc := presetDescription(cfg)
 				rl.DrawText(desc, 220, y+38, 14, rl.NewColor(180, 180, 180, 200))
 			}
 
@@ -201,7 +201,7 @@ func main() {
 	rl.CloseWindow()
 }
 
-func presetDescription(name string, cfg colony.Config) string {
+func presetDescription(cfg colony.Config) string {
 	terrName := "Unknown"
 	switch cfg.TerrainType {
 	case terrain.Rastrigin:

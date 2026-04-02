@@ -31,16 +31,16 @@ func New() *Renderer {
 		CameraAngle: 0,
 		CameraSpeed: 0.3,
 		AutoOrbit:   true,
-		LowColor:    rl.NewColor(34, 85, 34, 255),    // dark green valley
-		MidColor:    rl.NewColor(180, 160, 80, 255),   // golden midlands
-		HighColor:   rl.NewColor(255, 100, 50, 255),   // orange-red peaks
+		LowColor:    rl.NewColor(34, 85, 34, 255),   // dark green valley
+		MidColor:    rl.NewColor(180, 160, 80, 255), // golden midlands
+		HighColor:   rl.NewColor(255, 100, 50, 255), // orange-red peaks
 	}
 
 	r.Camera = rl.Camera3D{
-		Position: rl.NewVector3(30, 25, 30),
-		Target:   rl.NewVector3(0, 0, 0),
-		Up:       rl.NewVector3(0, 1, 0),
-		Fovy:     45,
+		Position:   rl.NewVector3(30, 25, 30),
+		Target:     rl.NewVector3(0, 0, 0),
+		Up:         rl.NewVector3(0, 1, 0),
+		Fovy:       45,
 		Projection: rl.CameraPerspective,
 	}
 
