@@ -9,8 +9,8 @@ import (
 
 // Assets holds the loaded/generated models for bee rendering
 type Assets struct {
-	BeeModel rl.Model
-	Loaded   bool
+	BeeModel  rl.Model
+	Loaded    bool
 }
 
 // New creates a bee model. It first tries to load from assets/models/bee.glb,
@@ -67,7 +67,7 @@ func generateProceduralBee() rl.Model {
 
 	// Abdomen - elongated sphere at rear
 	addEllipsoid(&allVerts, &allColors, &allNormals,
-		-0.35, 0, 0, // center offset
+		-0.35, 0, 0,    // center offset
 		0.45, 0.35, 0.35, // radii
 		12, 8,
 		beeYellow, beeStripe, true) // striped=true
@@ -89,9 +89,9 @@ func generateProceduralBee() rl.Model {
 	// Wings - flat quads (two triangles each)
 	// Left wing
 	addWing(&allVerts, &allColors, &allNormals,
-		0.1, 0.28, -0.15, // base
-		-0.15, 0.55, -0.5, // tip
-		0.3, 0.35, -0.05, // trailing edge
+		0.1, 0.28, -0.15,   // base
+		-0.15, 0.55, -0.5,  // tip
+		0.3, 0.35, -0.05,   // trailing edge
 		wingColor)
 
 	// Right wing
