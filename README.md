@@ -104,7 +104,3 @@ bee-colony/
 ## License
 
 MIT
-
-## Author
-
-S.A. Routh — [GitHub](https://github.com/saedarm) | [Medium](https://medium.com/@s.a.routh)
