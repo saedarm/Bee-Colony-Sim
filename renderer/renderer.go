@@ -45,10 +45,14 @@ func New() *Renderer {
 	r.rebuildCamera()
 	return r
 }
-
 func (r *Renderer) Unload() {
-	r.BeeAssets.Unload()
-	r.Particles.Unload()
+	// Particle textures are safe to unload (created via LoadTextureFromImage)
+	if r.Particles != nil {
+		r.Particles.Unload()
+	}
+	// BeeAssets and TerrainModel use procedural meshes with Go-allocated
+	// vertex data — calling UnloadModel crashes because raylib tries to
+	// free Go memory. We skip it; GPU buffers are reclaimed on context close.
 }
 
 func (r *Renderer) rebuildCamera() {
@@ -121,27 +125,45 @@ func compNorm(v0, v1, v2 [3]float32) [3]float32 {
 	vx, vy, vz := v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]
 	nx, ny, nz := uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx
 	l := float32(math.Sqrt(float64(nx*nx + ny*ny + nz*nz)))
-	if l > 0 { return [3]float32{nx / l, ny / l, nz / l} }
+	if l > 0 {
+		return [3]float32{nx / l, ny / l, nz / l}
+	}
 	return [3]float32{0, 1, 0}
 }
 
 func cB(v float32) uint8 {
-	if v < 0 { return 0 }
-	if v > 255 { return 255 }
+	if v < 0 {
+		return 0
+	}
+	if v > 255 {
+		return 255
+	}
 	return uint8(v)
 }
 
 func (r *Renderer) heightColor(h float32) rl.Color {
-	if h < 0 { h = 0 }
-	if h > 1 { h = 1 }
-	if h < 0.25 { return lerpC(r.WaterColor, r.LowColor, h/0.25) }
-	if h < 0.55 { return lerpC(r.LowColor, r.MidColor, (h-0.25)/0.30) }
+	if h < 0 {
+		h = 0
+	}
+	if h > 1 {
+		h = 1
+	}
+	if h < 0.25 {
+		return lerpC(r.WaterColor, r.LowColor, h/0.25)
+	}
+	if h < 0.55 {
+		return lerpC(r.LowColor, r.MidColor, (h-0.25)/0.30)
+	}
 	return lerpC(r.MidColor, r.HighColor, (h-0.55)/0.45)
 }
 
 func lerpC(a, b rl.Color, t float32) rl.Color {
-	if t < 0 { t = 0 }
-	if t > 1 { t = 1 }
+	if t < 0 {
+		t = 0
+	}
+	if t > 1 {
+		t = 1
+	}
 	return rl.NewColor(uint8(float32(a.R)*(1-t)+float32(b.R)*t), uint8(float32(a.G)*(1-t)+float32(b.G)*t), uint8(float32(a.B)*(1-t)+float32(b.B)*t), 255)
 }
 
@@ -150,20 +172,36 @@ func (r *Renderer) UpdateCamera(dt float32) {
 		d := rl.GetMouseDelta()
 		r.CameraYaw += d.X * 0.005
 		r.CameraPitch -= d.Y * 0.005
-		if r.CameraPitch < 0.1 { r.CameraPitch = 0.1 }
-		if r.CameraPitch > 1.45 { r.CameraPitch = 1.45 }
+		if r.CameraPitch < 0.1 {
+			r.CameraPitch = 0.1
+		}
+		if r.CameraPitch > 1.45 {
+			r.CameraPitch = 1.45
+		}
 	}
 	w := rl.GetMouseWheelMove()
 	if w != 0 {
 		r.CameraDist -= w * 3
-		if r.CameraDist < 15 { r.CameraDist = 15 }
-		if r.CameraDist > 100 { r.CameraDist = 100 }
+		if r.CameraDist < 15 {
+			r.CameraDist = 15
+		}
+		if r.CameraDist > 100 {
+			r.CameraDist = 100
+		}
 	}
 	pan := float32(25.0) * dt
-	if rl.IsKeyDown(rl.KeyW) { r.TargetZ -= pan }
-	if rl.IsKeyDown(rl.KeyS) { r.TargetZ += pan }
-	if rl.IsKeyDown(rl.KeyA) { r.TargetX -= pan }
-	if rl.IsKeyDown(rl.KeyD) { r.TargetX += pan }
+	if rl.IsKeyDown(rl.KeyW) {
+		r.TargetZ -= pan
+	}
+	if rl.IsKeyDown(rl.KeyS) {
+		r.TargetZ += pan
+	}
+	if rl.IsKeyDown(rl.KeyA) {
+		r.TargetX -= pan
+	}
+	if rl.IsKeyDown(rl.KeyD) {
+		r.TargetX += pan
+	}
 	r.rebuildCamera()
 }
 
@@ -198,8 +236,12 @@ func (r *Renderer) DrawFoods(foods []*colony.FoodSource, t *terrain.Terrain, aba
 
 		// Size scales with fitness quality (normalized roughly)
 		fitScale := float32(0.5 + 0.5*(food.Fitness/100.0))
-		if fitScale > 1.5 { fitScale = 1.5 }
-		if fitScale < 0.4 { fitScale = 0.4 }
+		if fitScale > 1.5 {
+			fitScale = 1.5
+		}
+		if fitScale < 0.4 {
+			fitScale = 0.4
+		}
 		baseSize := (float32(0.6) + float32(food.Nectar)*1.0) * fitScale
 		food.PulsePhase += 0.03
 		pulse := float32(1.0 + 0.1*math.Sin(float64(food.PulsePhase)))
@@ -240,8 +282,12 @@ func (r *Renderer) DrawFoods(foods []*colony.FoodSource, t *terrain.Terrain, aba
 		barH := float32(food.Nectar) * 2.5
 		barPos := rl.NewVector3(wx+size*0.9, wy, wz)
 		barColor := rl.NewColor(100, 255, 100, 200)
-		if food.Nectar < 0.3 { barColor = rl.NewColor(255, 200, 50, 200) }
-		if food.Nectar < 0.1 { barColor = rl.NewColor(255, 60, 60, 200) }
+		if food.Nectar < 0.3 {
+			barColor = rl.NewColor(255, 200, 50, 200)
+		}
+		if food.Nectar < 0.1 {
+			barColor = rl.NewColor(255, 60, 60, 200)
+		}
 		rl.DrawCube(barPos, 0.15, barH, 0.15, barColor)
 
 		// === DANGER RING: shows how close to abandonment ===
@@ -315,7 +361,13 @@ func drawOctahedron(pos rl.Vector3, size float32, color rl.Color) {
 	}
 }
 
-func aB(v uint8, add int) uint8 { r := int(v) + add; if r > 255 { return 255 }; return uint8(r) }
+func aB(v uint8, add int) uint8 {
+	r := int(v) + add
+	if r > 255 {
+		return 255
+	}
+	return uint8(r)
+}
 
 func (r *Renderer) DrawBees(bees []*colony.Bee, t *terrain.Terrain) {
 	for _, bee := range bees {
@@ -348,7 +400,9 @@ func (r *Renderer) DrawBees(bees []*colony.Bee, t *terrain.Terrain) {
 
 		// Glow
 		ga := uint8(30)
-		if bee.Role == colony.Scout { ga = 55 }
+		if bee.Role == colony.Scout {
+			ga = 55
+		}
 		rl.DrawSphere(pos, 1.2, rl.NewColor(tint.R, tint.G, tint.B, ga))
 
 		// Scout launch burst
@@ -388,7 +442,9 @@ func (r *Renderer) DrawBees(bees []*colony.Bee, t *terrain.Terrain) {
 func (r *Renderer) DrawScoutPaths(events []colony.ScoutEvent, t *terrain.Terrain) {
 	for _, ev := range events {
 		alpha := uint8(255 * (1 - ev.Age/3.0))
-		if alpha < 10 { continue }
+		if alpha < 10 {
+			continue
+		}
 
 		fromY := t.HeightAt(float32(ev.FromX), float32(ev.FromZ)) + 2
 		toY := t.HeightAt(float32(ev.ToX), float32(ev.ToZ)) + 2
@@ -418,9 +474,13 @@ func (r *Renderer) DrawScoutPaths(events []colony.ScoutEvent, t *terrain.Terrain
 
 // DrawFoodInfoOverlay renders per-food labels when toggled on
 func (r *Renderer) DrawFoodInfoOverlay(foods []*colony.FoodSource, t *terrain.Terrain, abandonLimit int) {
-	if !r.ShowFoodInfo { return }
+	if !r.ShowFoodInfo {
+		return
+	}
 	for i, food := range foods {
-		if !food.Active { continue }
+		if !food.Active {
+			continue
+		}
 		wx, wz := float32(food.X), float32(food.Z)
 		wy := t.HeightAt(wx, wz) + 4.0
 
@@ -437,7 +497,7 @@ func (r *Renderer) DrawFoodInfoOverlay(foods []*colony.FoodSource, t *terrain.Te
 	}
 }
 
-func (r *Renderer) DrawParticles() { r.Particles.Draw(r.Camera) }
+func (r *Renderer) DrawParticles()             { r.Particles.Draw(r.Camera) }
 func (r *Renderer) UpdateParticles(dt float32) { r.Particles.Update(dt) }
 
 func (r *Renderer) DrawHive(t *terrain.Terrain) {
@@ -474,16 +534,22 @@ func (r *Renderer) DrawHUD(c *colony.Colony, presetName, phase string, paused bo
 
 	// Speed and pause
 	speedTxt := fmt.Sprintf("Speed: %.1fx", speed)
-	if paused { speedTxt = "PAUSED" }
+	if paused {
+		speedTxt = "PAUSED"
+	}
 	pauseColor := rl.White
-	if paused { pauseColor = rl.NewColor(255, 100, 100, 255) }
+	if paused {
+		pauseColor = rl.NewColor(255, 100, 100, 255)
+	}
 	rl.DrawText(speedTxt, 20, y, 16, pauseColor)
 	y += sp
 
 	// Tick progress bar
 	rl.DrawRectangle(20, y, 280, 8, rl.NewColor(40, 40, 40, 200))
 	barW := int32(280 * tickProgress)
-	if barW > 280 { barW = 280 }
+	if barW > 280 {
+		barW = 280
+	}
 	rl.DrawRectangle(20, y, barW, 8, rl.NewColor(255, 200, 0, 180))
 	y += 16
 
@@ -504,6 +570,10 @@ func (r *Renderer) DrawHUD(c *colony.Colony, presetName, phase string, paused bo
 
 func countActive(foods []*colony.FoodSource) int {
 	n := 0
-	for _, f := range foods { if f.Active { n++ } }
+	for _, f := range foods {
+		if f.Active {
+			n++
+		}
+	}
 	return n
 }
