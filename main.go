@@ -55,28 +55,36 @@ func main() {
 				my := rl.GetMouseY()
 				if my >= y && my < y+65 && rl.GetMouseX() >= 200 && rl.GetMouseX() <= screenWidth-200 {
 					boxC = rl.NewColor(55, 45, 25, 255)
-					if rl.IsMouseButtonPressed(rl.MouseLeftButton) { currentPreset = i }
+					if rl.IsMouseButtonPressed(rl.MouseLeftButton) {
+						currentPreset = i
+					}
 				}
 				rl.DrawRectangle(200, y, int32(screenWidth-400), 65, boxC)
 				rl.DrawRectangleLines(200, y, int32(screenWidth-400), 65, rl.NewColor(txtC.R, txtC.G, txtC.B, 80))
 				rl.DrawText(fmt.Sprintf("[%d] %s", i+1, name), 220, y+6, 22, txtC)
-				rl.DrawText(presetDesc(name, cfg), 220, y+34, 13, rl.NewColor(170, 170, 170, 200))
+				rl.DrawText(presetDesc(cfg), 220, y+34, 13, rl.NewColor(170, 170, 170, 200))
 			}
 
 			ly := int32(240 + len(presetNames)*75 + 12)
 			lc := rl.Gold
 			if rl.GetMouseY() >= ly && rl.GetMouseY() < ly+50 && rl.GetMouseX() >= screenWidth/2-110 && rl.GetMouseX() <= screenWidth/2+110 {
 				lc = rl.Yellow
-				if rl.IsMouseButtonPressed(rl.MouseLeftButton) { showSetup = false }
+				if rl.IsMouseButtonPressed(rl.MouseLeftButton) {
+					showSetup = false
+				}
 			}
 			rl.DrawRectangle(screenWidth/2-110, ly, 220, 50, rl.NewColor(40, 35, 10, 255))
 			rl.DrawRectangleLines(screenWidth/2-110, ly, 220, 50, lc)
 			rl.DrawText("Release the Swarm", screenWidth/2-85, ly+16, 18, lc)
 
 			for i := range presetNames {
-				if rl.IsKeyPressed(int32(rl.KeyOne) + int32(i)) { currentPreset = i }
+				if rl.IsKeyPressed(int32(rl.KeyOne) + int32(i)) {
+					currentPreset = i
+				}
 			}
-			if rl.IsKeyPressed(rl.KeyEnter) || rl.IsKeyPressed(rl.KeySpace) { showSetup = false }
+			if rl.IsKeyPressed(rl.KeyEnter) || rl.IsKeyPressed(rl.KeySpace) {
+				showSetup = false
+			}
 
 			rl.EndDrawing()
 
@@ -97,17 +105,27 @@ func main() {
 		tickRate := baseTick / simSpeed
 
 		// === INPUT ===
-		if rl.IsKeyPressed(rl.KeySpace) { paused = !paused }
+		if rl.IsKeyPressed(rl.KeySpace) {
+			paused = !paused
+		}
 		if rl.IsKeyPressed(rl.KeyEqual) || rl.IsKeyPressed(rl.KeyKpAdd) {
 			simSpeed *= 1.5
-			if simSpeed > 10 { simSpeed = 10 }
+			if simSpeed > 10 {
+				simSpeed = 10
+			}
 		}
 		if rl.IsKeyPressed(rl.KeyMinus) || rl.IsKeyPressed(rl.KeyKpSubtract) {
 			simSpeed /= 1.5
-			if simSpeed < 0.1 { simSpeed = 0.1 }
+			if simSpeed < 0.1 {
+				simSpeed = 0.1
+			}
 		}
-		if rl.IsKeyPressed(rl.KeyT) { rend.ShowTrails = !rend.ShowTrails }
-		if rl.IsKeyPressed(rl.KeyI) { rend.ShowFoodInfo = !rend.ShowFoodInfo }
+		if rl.IsKeyPressed(rl.KeyT) {
+			rend.ShowTrails = !rend.ShowTrails
+		}
+		if rl.IsKeyPressed(rl.KeyI) {
+			rend.ShowFoodInfo = !rend.ShowFoodInfo
+		}
 
 		// === SIMULATION ===
 		if !paused {
@@ -116,9 +134,12 @@ func main() {
 				tickTimer -= tickRate
 				sim.Step()
 				switch sim.Generation % 3 {
-				case 0: phase = "Employed Bees"
-				case 1: phase = "Onlooker Bees"
-				case 2: phase = "Scout Bees"
+				case 0:
+					phase = "Employed Bees"
+				case 1:
+					phase = "Onlooker Bees"
+				case 2:
+					phase = "Scout Bees"
 				}
 			}
 			sim.UpdateAnimation(dt)
@@ -129,7 +150,9 @@ func main() {
 		rend.UpdateParticles(dt) // particles still animate when paused for visual continuity
 
 		tickProgress := tickTimer / tickRate
-		if tickProgress > 1 { tickProgress = 1 }
+		if tickProgress > 1 {
+			tickProgress = 1
+		}
 
 		// Restart
 		if rl.IsKeyPressed(rl.KeyR) {
@@ -156,7 +179,10 @@ func main() {
 				paused = false
 			}
 		}
-		if rl.IsKeyPressed(rl.KeyEscape) { showSetup = true; continue }
+		if rl.IsKeyPressed(rl.KeyEscape) {
+			showSetup = true
+			continue
+		}
 
 		// === DRAW ===
 		rl.BeginDrawing()
@@ -177,18 +203,25 @@ func main() {
 		rl.EndDrawing()
 	}
 
-	if rend != nil { rend.Unload() }
+	if rend != nil {
+		rend.Unload()
+	}
 	rl.CloseWindow()
 }
 
-func presetDesc(name string, cfg colony.Config) string {
+func presetDesc(cfg colony.Config) string {
 	tn := "Unknown"
 	switch cfg.TerrainType {
-	case terrain.Rastrigin: tn = "Rastrigin (spiky, many local optima)"
-	case terrain.Ackley: tn = "Ackley (sharp global min, bumpy plateau)"
-	case terrain.Rosenbrock: tn = "Rosenbrock (narrow curved valley)"
-	case terrain.PerlinNoise: tn = "Perlin Noise (organic rolling hills)"
-	case terrain.RandomPeaks: tn = "Random Peaks (scattered gaussians)"
+	case terrain.Rastrigin:
+		tn = "Rastrigin (spiky, many local optima)"
+	case terrain.Ackley:
+		tn = "Ackley (sharp global min, bumpy plateau)"
+	case terrain.Rosenbrock:
+		tn = "Rosenbrock (narrow curved valley)"
+	case terrain.PerlinNoise:
+		tn = "Perlin Noise (organic rolling hills)"
+	case terrain.RandomPeaks:
+		tn = "Random Peaks (scattered gaussians)"
 	}
 	return fmt.Sprintf("%d bees | %d food | abandon:%d | %s", cfg.NumBees, cfg.NumFoods, cfg.AbandonLimit, tn)
 }
