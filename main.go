@@ -13,15 +13,14 @@ import (
 const (
 	screenWidth  = 1280
 	screenHeight = 800
-	gridSize     = 80
-	tickRate     = 0.5 // seconds between algorithm steps
+	gridSize     = 100
+	tickRate     = 0.4
 )
 
 func main() {
 	rl.InitWindow(screenWidth, screenHeight, "Bee Colony - ABC Algorithm Visualizer")
 	rl.SetTargetFPS(60)
 
-	// State
 	presets := colony.Presets()
 	presetNames := []string{"Balanced", "Plenty", "Famine", "Needle", "Swarm"}
 	currentPreset := 0
@@ -33,62 +32,49 @@ func main() {
 	var tickTimer float32
 	phase := "Initializing"
 
-	// Setup screen loop
 	for !rl.WindowShouldClose() {
 		if showSetup {
 			rl.BeginDrawing()
-			rl.ClearBackground(rl.NewColor(15, 15, 25, 255))
+			rl.ClearBackground(rl.NewColor(12, 12, 22, 255))
 
-			// Title
 			rl.DrawText("BEE COLONY", screenWidth/2-180, 80, 48, rl.Gold)
 			rl.DrawText("Artificial Bee Colony Algorithm Visualizer", screenWidth/2-220, 140, 18, rl.LightGray)
-
-			// Preset selection
 			rl.DrawText("Select a preset experiment:", screenWidth/2-130, 220, 18, rl.White)
 
 			for i, name := range presetNames {
 				cfg := presets[name]
-				y := int32(280 + i*90)
-				boxColor := rl.NewColor(40, 40, 60, 255)
+				y := int32(270 + i*80)
+				boxColor := rl.NewColor(35, 35, 55, 255)
 				textColor := rl.LightGray
-
 				if i == currentPreset {
-					boxColor = rl.NewColor(80, 60, 20, 255)
+					boxColor = rl.NewColor(70, 55, 15, 255)
 					textColor = rl.Gold
 				}
-
-				// Check mouse hover
 				mouseY := rl.GetMouseY()
-				if mouseY >= y && mouseY < y+80 && rl.GetMouseX() >= 200 && rl.GetMouseX() <= screenWidth-200 {
-					boxColor = rl.NewColor(60, 50, 30, 255)
+				if mouseY >= y && mouseY < y+70 && rl.GetMouseX() >= 200 && rl.GetMouseX() <= screenWidth-200 {
+					boxColor = rl.NewColor(55, 45, 25, 255)
 					if rl.IsMouseButtonPressed(rl.MouseLeftButton) {
 						currentPreset = i
 					}
 				}
-
-				rl.DrawRectangle(200, y, int32(screenWidth-400), 80, boxColor)
-				rl.DrawRectangleLines(200, y, int32(screenWidth-400), 80, rl.NewColor(textColor.R, textColor.G, textColor.B, 100))
-
-				rl.DrawText(fmt.Sprintf("[%d] %s", i+1, name), 220, y+10, 22, textColor)
-
-				desc := presetDescription(cfg)
-				rl.DrawText(desc, 220, y+38, 14, rl.NewColor(180, 180, 180, 200))
+				rl.DrawRectangle(200, y, int32(screenWidth-400), 70, boxColor)
+				rl.DrawRectangleLines(200, y, int32(screenWidth-400), 70, rl.NewColor(textColor.R, textColor.G, textColor.B, 80))
+				rl.DrawText(fmt.Sprintf("[%d] %s", i+1, name), 220, y+8, 22, textColor)
+				rl.DrawText(presetDescription(cfg), 220, y+36, 13, rl.NewColor(170, 170, 170, 200))
 			}
 
-			// Launch button
-			launchY := int32(280 + len(presetNames)*90 + 20)
+			launchY := int32(270 + len(presetNames)*80 + 15)
 			launchColor := rl.Gold
-			if rl.GetMouseY() >= launchY && rl.GetMouseY() < launchY+50 && rl.GetMouseX() >= screenWidth/2-100 && rl.GetMouseX() <= screenWidth/2+100 {
+			if rl.GetMouseY() >= launchY && rl.GetMouseY() < launchY+50 && rl.GetMouseX() >= screenWidth/2-110 && rl.GetMouseX() <= screenWidth/2+110 {
 				launchColor = rl.Yellow
 				if rl.IsMouseButtonPressed(rl.MouseLeftButton) {
 					showSetup = false
 				}
 			}
-			rl.DrawRectangle(screenWidth/2-100, launchY, 200, 50, rl.NewColor(40, 40, 10, 255))
-			rl.DrawRectangleLines(screenWidth/2-100, launchY, 200, 50, launchColor)
-			rl.DrawText("Release the Swarm", screenWidth/2-82, launchY+16, 18, launchColor)
+			rl.DrawRectangle(screenWidth/2-110, launchY, 220, 50, rl.NewColor(40, 35, 10, 255))
+			rl.DrawRectangleLines(screenWidth/2-110, launchY, 220, 50, launchColor)
+			rl.DrawText("Release the Swarm", screenWidth/2-85, launchY+16, 18, launchColor)
 
-			// Keyboard shortcuts
 			for i := range presetNames {
 				if rl.IsKeyPressed(int32(rl.KeyOne) + int32(i)) {
 					currentPreset = i
@@ -101,7 +87,6 @@ func main() {
 			rl.EndDrawing()
 
 			if !showSetup {
-				// Initialize simulation
 				cfg := presets[presetNames[currentPreset]]
 				terr = terrain.New(cfg.TerrainType, gridSize)
 				sim = colony.NewColony(cfg, terr)
@@ -112,21 +97,14 @@ func main() {
 			continue
 		}
 
-		// === SIMULATION LOOP ===
+		// === SIMULATION ===
 		dt := rl.GetFrameTime()
 
-		// Algorithm tick
 		tickTimer += dt
 		if tickTimer >= tickRate {
 			tickTimer -= tickRate
-
-			// Run one ABC generation
-			phase = "Employed Bees"
 			sim.Step()
-
-			// Cycle phase display (visual only, the Step does all three)
-			gen := sim.Generation
-			switch gen % 3 {
+			switch sim.Generation % 3 {
 			case 0:
 				phase = "Employed Bees"
 			case 1:
@@ -136,15 +114,13 @@ func main() {
 			}
 		}
 
-		// Animate bees smoothly
 		sim.UpdateAnimation(dt)
-
-		// Camera
 		rend.UpdateCamera(dt)
+		rend.UpdateParticles(dt)
 
-		// Keyboard controls
+		// Keyboard
 		if rl.IsKeyPressed(rl.KeyR) {
-			// Restart with same preset
+			rend.Unload()
 			cfg := presets[presetNames[currentPreset]]
 			terr = terrain.New(cfg.TerrainType, gridSize)
 			sim = colony.NewColony(cfg, terr)
@@ -152,10 +128,9 @@ func main() {
 			rend.BuildTerrainMesh(terr)
 			tickTimer = 0
 		}
-
-		// Switch presets with number keys
 		for i := range presetNames {
 			if rl.IsKeyPressed(int32(rl.KeyOne) + int32(i)) {
+				rend.Unload()
 				currentPreset = i
 				cfg := presets[presetNames[currentPreset]]
 				terr = terrain.New(cfg.TerrainType, gridSize)
@@ -165,32 +140,21 @@ func main() {
 				tickTimer = 0
 			}
 		}
-
-		// Back to setup
 		if rl.IsKeyPressed(rl.KeyEscape) {
 			showSetup = true
 			continue
 		}
 
-		// Toggle auto-orbit
-		if rl.IsKeyPressed(rl.KeyO) {
-			rend.AutoOrbit = !rend.AutoOrbit
-		}
-
 		// === DRAW ===
 		rl.BeginDrawing()
-		rl.ClearBackground(rl.NewColor(10, 10, 20, 255))
+		rl.ClearBackground(rl.NewColor(15, 20, 35, 255))
 
 		rl.BeginMode3D(rend.Camera)
-
 		rend.DrawTerrain()
 		rend.DrawHive(terr)
 		rend.DrawFoods(sim.Foods, terr)
 		rend.DrawBees(sim.Bees, terr)
-
-		// Grid floor reference
-		rl.DrawGrid(20, 2.0)
-
+		rend.DrawParticles()
 		rl.EndMode3D()
 
 		rend.DrawHUD(sim, presetNames[currentPreset], phase)
@@ -198,6 +162,9 @@ func main() {
 		rl.EndDrawing()
 	}
 
+	if rend != nil {
+		rend.Unload()
+	}
 	rl.CloseWindow()
 }
 
@@ -215,7 +182,6 @@ func presetDescription(cfg colony.Config) string {
 	case terrain.RandomPeaks:
 		terrName = "Random Peaks (scattered gaussians)"
 	}
-
 	return fmt.Sprintf("%d bees | %d food sources | abandon limit %d | %s",
 		cfg.NumBees, cfg.NumFoods, cfg.AbandonLimit, terrName)
 }

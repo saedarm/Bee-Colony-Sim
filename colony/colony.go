@@ -7,7 +7,6 @@ import (
 	"github.com/saedarm/bee-colony/terrain"
 )
 
-// BeeRole distinguishes the three types of bees in ABC
 type BeeRole int
 
 const (
@@ -16,63 +15,49 @@ const (
 	Scout
 )
 
-// Bee represents a single bee agent in the colony
 type Bee struct {
-	Role     BeeRole
-	X, Z     float64 // world position
-	TargetX  float64 // where this bee is heading
-	TargetZ  float64
-	Fitness  float64 // fitness of current food source
-	Trials   int     // number of failed improvement attempts
-	Carrying bool    // true if bee has picked up food
-	CarryX   float64 // where it picked up from
-	CarryZ   float64
-
-	// Animation state
-	Progress float32 // 0..1 interpolation toward target
+	Role      BeeRole
+	X, Z      float64
+	TargetX   float64
+	TargetZ   float64
+	Fitness   float64
+	Trials    int
+	Carrying  bool
+	CarryX    float64
+	CarryZ    float64
+	Progress  float32
 	WingPhase float32
 	Wobble    float32
 }
 
-// FoodSource represents a food source on the terrain
 type FoodSource struct {
 	X, Z       float64
 	Fitness    float64
-	Nectar     float64 // remaining nectar 0..1
+	Nectar     float64
 	MaxNectar  float64
 	Trials     int
-	ShapeType  int     // 0=cube, 1=tetra, 2=octa, 3=icosa, 4=dodeca
+	ShapeType  int
 	Active     bool
-	PulsePhase float32 // for visual pulsing
+	PulsePhase float32
 }
 
-// Colony is the full ABC simulation state
 type Colony struct {
-	Bees       []*Bee
-	Foods      []*FoodSource
-	Terrain    *terrain.Terrain
-	BestFitness float64
-	BestX      float64
-	BestZ      float64
-	Generation int
-
-	// Parameters
-	NumEmployed   int
-	NumOnlookers  int
-	AbandonLimit  int
-	WorldHalfSize float64
-
-	// Stats
-	FoodsExhausted int
+	Bees            []*Bee
+	Foods           []*FoodSource
+	Terrain         *terrain.Terrain
+	BestFitness     float64
+	BestX, BestZ    float64
+	Generation      int
+	NumEmployed     int
+	NumOnlookers    int
+	AbandonLimit    int
+	WorldHalfSize   float64
+	FoodsExhausted  int
 	FoodsDiscovered int
-
-	// Hive location (center)
-	HiveX, HiveZ float64
-
-	rng *rand.Rand
+	HiveX, HiveZ    float64
+	rng             *rand.Rand
 }
 
-// Config holds the setup parameters for a simulation run
 type Config struct {
 	NumBees      int
 	NumFoods     int
@@ -81,36 +66,19 @@ type Config struct {
 	Seed         int64
 }
 
-// Presets returns a named set of configurations
 func Presets() map[string]Config {
 	return map[string]Config{
-		"Balanced": {
-			NumBees: 30, NumFoods: 10, AbandonLimit: 20,
-			TerrainType: terrain.Rastrigin, Seed: 42,
-		},
-		"Plenty": {
-			NumBees: 15, NumFoods: 25, AbandonLimit: 30,
-			TerrainType: terrain.PerlinNoise, Seed: 77,
-		},
-		"Famine": {
-			NumBees: 40, NumFoods: 5, AbandonLimit: 10,
-			TerrainType: terrain.Ackley, Seed: 13,
-		},
-		"Needle": {
-			NumBees: 25, NumFoods: 15, AbandonLimit: 25,
-			TerrainType: terrain.Rastrigin, Seed: 99,
-		},
-		"Swarm": {
-			NumBees: 60, NumFoods: 12, AbandonLimit: 15,
-			TerrainType: terrain.RandomPeaks, Seed: 256,
-		},
+		"Balanced": {NumBees: 30, NumFoods: 10, AbandonLimit: 20, TerrainType: terrain.Rastrigin, Seed: 42},
+		"Plenty":   {NumBees: 15, NumFoods: 25, AbandonLimit: 30, TerrainType: terrain.PerlinNoise, Seed: 77},
+		"Famine":   {NumBees: 40, NumFoods: 5, AbandonLimit: 10, TerrainType: terrain.Ackley, Seed: 13},
+		"Needle":   {NumBees: 25, NumFoods: 15, AbandonLimit: 25, TerrainType: terrain.Rastrigin, Seed: 99},
+		"Swarm":    {NumBees: 60, NumFoods: 12, AbandonLimit: 15, TerrainType: terrain.RandomPeaks, Seed: 256},
 	}
 }
 
-// NewColony creates and initializes a colony from config
 func NewColony(cfg Config, t *terrain.Terrain) *Colony {
 	rng := rand.New(rand.NewSource(cfg.Seed))
-	halfSize := float64(t.ScaleXZ) / 2.0 * 0.9 // stay slightly inbounds
+	halfSize := float64(t.ScaleXZ) / 2.0 * 0.85
 
 	c := &Colony{
 		Terrain:       t,
@@ -118,172 +86,108 @@ func NewColony(cfg Config, t *terrain.Terrain) *Colony {
 		NumOnlookers:  cfg.NumBees / 2,
 		AbandonLimit:  cfg.AbandonLimit,
 		WorldHalfSize: halfSize,
-		HiveX:         0,
-		HiveZ:         0,
 		rng:           rng,
 	}
 
-	// Initialize food sources
 	c.Foods = make([]*FoodSource, cfg.NumFoods)
 	for i := 0; i < cfg.NumFoods; i++ {
 		c.Foods[i] = c.randomFood()
 		c.Foods[i].ShapeType = i % 5
 	}
 
-	// Initialize bees
 	totalBees := c.NumEmployed + c.NumOnlookers
 	c.Bees = make([]*Bee, totalBees)
 
-	// Employed bees: one per food source (cycle if more bees than food)
 	for i := 0; i < c.NumEmployed; i++ {
-		foodIdx := i % len(c.Foods)
-		food := c.Foods[foodIdx]
+		food := c.Foods[i%len(c.Foods)]
 		c.Bees[i] = &Bee{
-			Role:     Employed,
-			X:        c.HiveX,
-			Z:        c.HiveZ,
-			TargetX:  food.X,
-			TargetZ:  food.Z,
-			Fitness:  food.Fitness,
-			Progress: 0,
-			WingPhase: rng.Float32() * math.Pi * 2,
-			Wobble:   rng.Float32() * math.Pi * 2,
+			Role: Employed, X: rng.Float64()*4 - 2, Z: rng.Float64()*4 - 2,
+			TargetX: food.X, TargetZ: food.Z, Fitness: food.Fitness,
+			WingPhase: rng.Float32() * math.Pi * 2, Wobble: rng.Float32() * math.Pi * 2,
 		}
 	}
-
-	// Onlooker bees: start at hive, waiting
 	for i := c.NumEmployed; i < totalBees; i++ {
 		c.Bees[i] = &Bee{
-			Role:     Onlooker,
-			X:        c.HiveX,
-			Z:        c.HiveZ,
-			TargetX:  c.HiveX,
-			TargetZ:  c.HiveZ,
-			Progress: 0,
-			WingPhase: rng.Float32() * math.Pi * 2,
-			Wobble:   rng.Float32() * math.Pi * 2,
+			Role: Onlooker, X: rng.Float64()*4 - 2, Z: rng.Float64()*4 - 2,
+			WingPhase: rng.Float32() * math.Pi * 2, Wobble: rng.Float32() * math.Pi * 2,
 		}
 	}
-
 	return c
 }
 
-// Step advances the ABC algorithm by one generation
 func (c *Colony) Step() {
 	c.Generation++
 
-	// === PHASE 1: Employed Bees ===
 	for i := 0; i < c.NumEmployed; i++ {
 		bee := c.Bees[i]
 		bee.Role = Employed
-
-		// Pick a food source for this employed bee
 		foodIdx := i % len(c.Foods)
 		food := c.Foods[foodIdx]
-
 		if !food.Active {
 			continue
 		}
-
-		// Generate neighbor solution: v_ij = x_ij + phi * (x_ij - x_kj)
 		k := c.rng.Intn(len(c.Foods))
 		for k == foodIdx {
 			k = c.rng.Intn(len(c.Foods))
 		}
-		neighbor := c.Foods[k]
-
-		phi := c.rng.Float64()*2 - 1 // [-1, 1]
-		newX := food.X + phi*(food.X-neighbor.X)
-		newZ := food.Z + phi*(food.Z-neighbor.Z)
-
-		// Clamp to world bounds
-		newX = clamp(newX, -c.WorldHalfSize, c.WorldHalfSize)
-		newZ = clamp(newZ, -c.WorldHalfSize, c.WorldHalfSize)
-
-		newFitness := c.Terrain.Fitness(newX, newZ)
-
-		// Greedy selection
-		if newFitness > food.Fitness {
-			food.X = newX
-			food.Z = newZ
-			food.Fitness = newFitness
-			food.Trials = 0
-
-			// Deplete nectar slightly on successful exploitation
-			food.Nectar -= 0.02
+		nb := c.Foods[k]
+		phi := c.rng.Float64()*2 - 1
+		newX := clamp(food.X+phi*(food.X-nb.X), -c.WorldHalfSize, c.WorldHalfSize)
+		newZ := clamp(food.Z+phi*(food.Z-nb.Z), -c.WorldHalfSize, c.WorldHalfSize)
+		nf := c.Terrain.Fitness(newX, newZ)
+		if nf > food.Fitness {
+			food.X, food.Z, food.Fitness, food.Trials = newX, newZ, nf, 0
+			food.Nectar -= 0.015
 			if food.Nectar < 0 {
 				food.Nectar = 0
 			}
 		} else {
 			food.Trials++
 		}
-
-		// Direct bee toward food
-		bee.TargetX = food.X
-		bee.TargetZ = food.Z
-		bee.Fitness = food.Fitness
-		bee.Carrying = true
-		bee.CarryX = food.X
-		bee.CarryZ = food.Z
+		bee.TargetX, bee.TargetZ, bee.Fitness = food.X, food.Z, food.Fitness
+		bee.Carrying, bee.CarryX, bee.CarryZ = true, food.X, food.Z
 	}
 
-	// === PHASE 2: Onlooker Bees (roulette wheel selection) ===
-	// Calculate selection probabilities
-	totalFitness := 0.0
+	totalFit := 0.0
 	for _, f := range c.Foods {
 		if f.Active {
-			totalFitness += f.Fitness
+			totalFit += f.Fitness
 		}
 	}
-
 	for i := c.NumEmployed; i < len(c.Bees); i++ {
 		bee := c.Bees[i]
 		bee.Role = Onlooker
-
-		if totalFitness <= 0 {
+		if totalFit <= 0 {
 			continue
 		}
-
-		// Roulette wheel selection
-		r := c.rng.Float64() * totalFitness
-		cumulative := 0.0
-		selectedIdx := 0
+		r := c.rng.Float64() * totalFit
+		cum := 0.0
+		sel := 0
 		for j, f := range c.Foods {
 			if !f.Active {
 				continue
 			}
-			cumulative += f.Fitness
-			if cumulative >= r {
-				selectedIdx = j
+			cum += f.Fitness
+			if cum >= r {
+				sel = j
 				break
 			}
 		}
-
-		food := c.Foods[selectedIdx]
+		food := c.Foods[sel]
 		if !food.Active {
 			continue
 		}
-
-		// Generate neighbor solution (same as employed phase)
 		k := c.rng.Intn(len(c.Foods))
-		for k == selectedIdx && len(c.Foods) > 1 {
+		for k == sel && len(c.Foods) > 1 {
 			k = c.rng.Intn(len(c.Foods))
 		}
-		neighbor := c.Foods[k]
-
+		nb := c.Foods[k]
 		phi := c.rng.Float64()*2 - 1
-		newX := food.X + phi*(food.X-neighbor.X)
-		newZ := food.Z + phi*(food.Z-neighbor.Z)
-		newX = clamp(newX, -c.WorldHalfSize, c.WorldHalfSize)
-		newZ = clamp(newZ, -c.WorldHalfSize, c.WorldHalfSize)
-
-		newFitness := c.Terrain.Fitness(newX, newZ)
-
-		if newFitness > food.Fitness {
-			food.X = newX
-			food.Z = newZ
-			food.Fitness = newFitness
-			food.Trials = 0
+		newX := clamp(food.X+phi*(food.X-nb.X), -c.WorldHalfSize, c.WorldHalfSize)
+		newZ := clamp(food.Z+phi*(food.Z-nb.Z), -c.WorldHalfSize, c.WorldHalfSize)
+		nf := c.Terrain.Fitness(newX, newZ)
+		if nf > food.Fitness {
+			food.X, food.Z, food.Fitness, food.Trials = newX, newZ, nf, 0
 			food.Nectar -= 0.01
 			if food.Nectar < 0 {
 				food.Nectar = 0
@@ -291,98 +195,61 @@ func (c *Colony) Step() {
 		} else {
 			food.Trials++
 		}
-
-		bee.TargetX = food.X
-		bee.TargetZ = food.Z
-		bee.Fitness = food.Fitness
+		bee.TargetX, bee.TargetZ, bee.Fitness = food.X, food.Z, food.Fitness
 	}
 
-	// === PHASE 3: Scout Bees ===
 	for i, food := range c.Foods {
 		if food.Active && (food.Trials >= c.AbandonLimit || food.Nectar <= 0) {
-			// Abandon this food source
 			food.Active = false
 			c.FoodsExhausted++
-
-			// Replace with new random food source
-			newFood := c.randomFood()
-			newFood.ShapeType = food.ShapeType
-			c.Foods[i] = newFood
+			nf := c.randomFood()
+			nf.ShapeType = food.ShapeType
+			c.Foods[i] = nf
 			c.FoodsDiscovered++
-
-			// Turn an employed bee into a scout briefly
 			beeIdx := i % c.NumEmployed
 			if beeIdx < len(c.Bees) {
-				bee := c.Bees[beeIdx]
-				bee.Role = Scout
-				bee.TargetX = newFood.X
-				bee.TargetZ = newFood.Z
-				bee.Carrying = false
+				b := c.Bees[beeIdx]
+				b.Role = Scout
+				b.TargetX, b.TargetZ, b.Carrying = nf.X, nf.Z, false
 			}
 		}
 	}
 
-	// === Update best solution ===
 	for _, f := range c.Foods {
 		if f.Active && f.Fitness > c.BestFitness {
-			c.BestFitness = f.Fitness
-			c.BestX = f.X
-			c.BestZ = f.Z
+			c.BestFitness, c.BestX, c.BestZ = f.Fitness, f.X, f.Z
 		}
 	}
 }
 
-// UpdateAnimation advances bee positions smoothly between ticks
 func (c *Colony) UpdateAnimation(dt float32) {
 	for _, bee := range c.Bees {
-		// Advance wing flapping
-		bee.WingPhase += dt * 15.0
-		bee.Wobble += dt * 3.0
-
-		// Move bee toward target
-		speed := float32(0.8)
+		bee.WingPhase += dt * 18.0
+		bee.Wobble += dt * 3.5
+		speed := float64(dt) * 1.2
 		if bee.Role == Scout {
-			speed = 1.5 // scouts zip around faster
+			speed = float64(dt) * 2.5
 		}
-
-		bee.Progress += dt * speed
-		if bee.Progress > 1.0 {
-			bee.Progress = 1.0
-		}
-
-		// Interpolate position
-		bee.X = lerp(bee.X, float64(bee.TargetX), float64(dt*speed))
-		bee.Z = lerp(bee.Z, float64(bee.TargetZ), float64(dt*speed))
+		bee.X += (bee.TargetX - bee.X) * speed
+		bee.Z += (bee.TargetZ - bee.Z) * speed
 	}
 }
 
-// randomFood creates a new random food source
 func (c *Colony) randomFood() *FoodSource {
 	x := (c.rng.Float64()*2 - 1) * c.WorldHalfSize
 	z := (c.rng.Float64()*2 - 1) * c.WorldHalfSize
-	fitness := c.Terrain.Fitness(x, z)
-
 	return &FoodSource{
-		X:         x,
-		Z:         z,
-		Fitness:   fitness,
-		Nectar:    1.0,
-		MaxNectar: 1.0,
-		Trials:    0,
-		Active:    true,
+		X: x, Z: z, Fitness: c.Terrain.Fitness(x, z),
+		Nectar: 1.0, MaxNectar: 1.0, Active: true,
 	}
 }
 
-func clamp(v, min, max float64) float64 {
-	if v < min {
-		return min
+func clamp(v, mn, mx float64) float64 {
+	if v < mn {
+		return mn
 	}
-	if v > max {
-		return max
+	if v > mx {
+		return mx
 	}
 	return v
-}
-
-func lerp(a, b, t float64) float64 {
-	return a + (b-a)*t
 }
