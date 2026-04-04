@@ -93,13 +93,6 @@ bee-colony/
 └── README.md
 ```
 
-## Blog Post Ideas
-
-- "Watching Bees Think: Visualizing the ABC Algorithm in 3D with Go and Raylib"
-- Walk through each preset as a narrative experiment
-- GIFs of swarm behavior on different landscapes
-- Discussion of exploration vs. exploitation tradeoffs
-- Comparison: what happens with high vs. low abandonment limits?
 
 ## License
 
